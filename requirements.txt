@@ -1,7 +1,11 @@
-ultralytics
-torchvision
-torch
-opencv-python
 streamlit
+requests
+pandas
+scikit-learn
+streamlit-autorefresh
+opencv-python
+torch
 pillow
 numpy
+python-telegram-bot==20.0
+pytz
