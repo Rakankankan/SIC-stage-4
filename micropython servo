@@ -1,0 +1,79 @@
+import urequests
+import time
+import machine
+from machine import Pin, PWM
+import network
+
+# Konfigurasi
+WIFI_SSID = 'moonstar'
+WIFI_PASSWORD = '17072005'
+FIREBASE_URL = "https://servo-control-f3c90-default-rtdb.asia-southeast1.firebasedatabase.app/servo.json"
+SERVO_PIN = 26
+UPDATE_INTERVAL = 1  # detik
+
+# Inisialisasi Servo
+servo = PWM(Pin(SERVO_PIN), freq=50)
+servo.duty(0)  # Posisi netral
+
+def connect_wifi():
+    sta_if = network.WLAN(network.STA_IF)
+    if not sta_if.isconnected():
+        print('Connecting to WiFi...')
+        sta_if.active(True)
+        sta_if.connect(WIFI_SSID, WIFI_PASSWORD)
+        
+        for _ in range(15):
+            if sta_if.isconnected():
+                break
+            time.sleep(1)
+            print('.', end='')
+    
+    print('\nWiFi status:', sta_if.isconnected())
+    return sta_if.isconnected()
+
+def set_servo_angle(angle):
+    try:
+        angle = max(0, min(180, int(angle)))
+        duty = int((angle / 180) * 102 + 26)
+        servo.duty(duty)
+        print(f"Moving to {angle}° (duty: {duty})")
+        time.sleep(0.5)  # Beri waktu servo bergerak
+        return True
+    except Exception as e:
+        print("Servo error:", e)
+        return False
+
+def main():
+    if not connect_wifi():
+        print("WiFi connection failed")
+        return
+    
+    last_angle = None
+    
+    while True:
+        try:
+            print("\nFetching from Firebase...")
+            response = urequests.get(FIREBASE_URL, timeout=5)
+            
+            if response.status_code == 200:
+                new_angle = response.json()
+                print("Received angle:", new_angle)
+                
+                if new_angle != last_angle:
+                    if set_servo_angle(new_angle):
+                        last_angle = new_angle
+                    else:
+                        print("Failed to move servo")
+            
+            response.close()
+            
+        except Exception as e:
+            print("Error:", e)
+            time.sleep(5)
+            continue
+        
+        time.sleep(UPDATE_INTERVAL)
+
+if __name__ == "__main__":
+    print("Starting Servo Controller")
+    main()
